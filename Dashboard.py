@@ -3,10 +3,7 @@ import pandas as pd
 import altair as alt
 
 from supabase import create_client
-from dotenv import load_dotenv
 import os
-
-load_dotenv()
 
 st.set_page_config(
     page_title="SIG Pickup Mitra Korporat",
@@ -15,9 +12,14 @@ st.set_page_config(
 
 st.title("📦 Sistem Informasi Geografis Pickup Mitra Korporat")
 
-# Supabase
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
+# Supabase credentials (lokal & cloud)
+url = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
+key = st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
+
+if not url or not key:
+    st.error("Supabase credentials belum dikonfigurasi.")
+    st.stop()
+
 supabase = create_client(url, key)
 
 response = supabase.table("pickup_locations").select("*").execute()
@@ -59,4 +61,5 @@ st.altair_chart(chart, use_container_width=True)
 # ===== REKAP DATA =====
 st.subheader("📋 Rekap Data Lokasi Pickup")
 st.dataframe(df, use_container_width=True)
+
 
