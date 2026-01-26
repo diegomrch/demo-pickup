@@ -1,0 +1,7 @@
+streamlit
+leafmap
+pandas
+supabase
+python-dotenv
+requests
+altair
