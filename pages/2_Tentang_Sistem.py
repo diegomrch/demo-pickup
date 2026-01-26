@@ -42,9 +42,10 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 ---
 
 ### 👨‍🎓 Pengembang
-ARIO YUDHANTO - 714252018
-DIEGO RAUDYA TRIMEIDIANTO - 714252004
+- ARIO YUDHANTO - 714252018
+- DIEGO RAUDYA TRIMEIDIANTO - 714252004
 **Program Studi: D4 Teknik Informatika RPL**  
 **Institusi:** Universitas Logistik dan Bisnis Internasional (ULBI)
 """)
+
 
