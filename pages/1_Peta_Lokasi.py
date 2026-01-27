@@ -37,15 +37,15 @@ if df.empty:
     st.warning("Data pickup masih kosong")
     st.stop()
 
+# =====================
+# VALIDASI KOLOM & KOORDINAT
+# =====================
 kolom_wajib = ["nama_pickuper", "nama_mitra", "latitude", "longitude", "alamat"]
 missing = [k for k in kolom_wajib if k not in df.columns]
 if missing:
     st.error(f"Kolom wajib tidak ditemukan: {', '.join(missing)}")
     st.stop()
 
-# =====================
-# VALIDASI KOORDINAT GLOBAL
-# =====================
 df = df[
     df["latitude"].between(-90, 90) &
     df["longitude"].between(-180, 180)
@@ -70,6 +70,7 @@ color_map = {p: WARNA[i % len(WARNA)] for i, p in enumerate(pickuper_list)}
 # SIDEBAR
 # =====================
 st.sidebar.header("Filter")
+
 pilih_pickuper = st.sidebar.selectbox(
     "Pilih Pickuper",
     ["Semua"] + pickuper_list
@@ -120,13 +121,57 @@ def osrm_trip(coords):
         return None
 
 # =====================
-# MAP INIT (TANPA CENTER)
+# POPUP CARD
+# =====================
+def popup_card(row):
+    return f"""
+    <div style="
+        font-family:Arial, sans-serif;
+        font-size:13px;
+        line-height:1.5;
+        width:260px;
+    ">
+        <div style="
+            font-weight:bold;
+            font-size:15px;
+            margin-bottom:6px;
+        ">
+            📦 {row.nama_mitra}
+        </div>
+
+        <div style="
+            border-top:1px solid #ddd;
+            margin:6px 0 8px 0;
+        "></div>
+
+        <div style="margin-bottom:6px;">
+            <b>👤 Petugas Pickup</b><br>
+            {row.nama_pickuper}
+        </div>
+
+        <div style="margin-bottom:6px;">
+            <b>📍 Alamat</b><br>
+            {row.alamat}
+        </div>
+
+        <div>
+            <b>🌐 Koordinat</b><br>
+            Lat: {row.latitude:.6f}<br>
+            Lon: {row.longitude:.6f}
+        </div>
+    </div>
+    """
+
+# =====================
+# MAP INIT
 # =====================
 m = leafmap.Map()
-
 MAX_TITIK = 50
 all_bounds = []
 
+# =====================
+# DRAW MAP
+# =====================
 for pickuper in sorted(df["nama_pickuper"].unique()):
     df_p = df[df["nama_pickuper"] == pickuper].reset_index(drop=True)
 
@@ -146,6 +191,7 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
         st.error(f"{pickuper}: gagal hitung rute OSRM")
         continue
 
+    # === URUTAN OPTIMAL (PENTING, TIDAK DIHILANGKAN) ===
     order = [wp["waypoint_index"] for wp in trip["waypoints"]]
     df_p = df_p.iloc[order].reset_index(drop=True)
 
@@ -155,14 +201,11 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
         all_bounds.append([lat, lon])
 
         folium.Marker(
-            [lat, lon],
+            location=[lat, lon],
             tooltip=f"{i}. {row.nama_mitra}",
-            popup=f"""
-                <b>{pickuper}</b><br>
-                <b>Mitra:</b> {row.nama_mitra}<br>
-                <b>Alamat:</b> {row.alamat}
-            """,
-            icon=folium.DivIcon(html=f"""
+            popup=folium.Popup(popup_card(row), max_width=300),
+            icon=folium.DivIcon(
+                html=f"""
                 <div style="
                     background:{color_map[pickuper]};
                     color:white;
@@ -172,11 +215,14 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
                     line-height:26px;
                     text-align:center;
                     font-weight:bold;
-                ">{i}</div>
-            """)
+                ">
+                    {i}
+                </div>
+                """
+            )
         ).add_to(m)
 
-    # === RUTE ===
+    # === RUTE JALAN ===
     geometry = trip["trips"][0]["geometry"]["coordinates"]
     folium.PolyLine(
         locations=[[lat, lon] for lon, lat in geometry],
@@ -191,14 +237,10 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
 if all_bounds:
     lats = [b[0] for b in all_bounds]
     lons = [b[1] for b in all_bounds]
-
-    m.fit_bounds([
-        [min(lats), min(lons)],
-        [max(lats), max(lons)]
-    ])
+    m.fit_bounds([[min(lats), min(lons)], [max(lats), max(lons)]])
 
 # =====================
 # OUTPUT
 # =====================
-st.subheader("🗺️ Rute Pickup Optimal (Auto Zoom ke Lokasi)")
+st.subheader("🗺️ Rute Pickup Optimal (Urutan & Popup Lengkap)")
 m.to_streamlit()
