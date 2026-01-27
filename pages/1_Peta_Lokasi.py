@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 st.set_page_config(layout="wide")
 st.title("📍 Peta Rute Pickup Optimal")
 
+# =====================
+# SUPABASE
+# =====================
 load_dotenv()
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
@@ -83,19 +86,25 @@ for p in pickuper_list:
     )
 
 # =====================
-# OSRM TRIP (CACHE)
+# OSRM TRIP (AMAN)
 # =====================
 @st.cache_data(ttl=3600)
 def osrm_trip(coords):
     """
     coords: list of (lat, lon)
     """
+    if len(coords) < 2:
+        return None
+
     coord_str = ";".join([f"{lon},{lat}" for lat, lon in coords])
 
     url = (
         f"http://router.project-osrm.org/trip/v1/driving/"
         f"{coord_str}"
-        "?overview=full&geometries=geojson&roundtrip=false"
+        "?overview=full"
+        "&geometries=geojson"
+        "&roundtrip=false"
+        "&source=first"
     )
 
     res = requests.get(url, timeout=20)
@@ -109,22 +118,33 @@ def osrm_trip(coords):
 # =====================
 m = leafmap.Map(center=[-2.5, 118], zoom=5)
 
+MAX_TITIK = 50  # batas aman OSRM public
+
 for pickuper in sorted(df["nama_pickuper"].unique()):
     df_p = df[df["nama_pickuper"] == pickuper].reset_index(drop=True)
 
-    if len(df_p) == 1:
-        row = df_p.iloc[0]
-        folium.Marker(
-            [row.latitude, row.longitude],
-            tooltip=row.nama_mitra
-        ).add_to(m)
+    # === VALIDASI KOORDINAT ===
+    df_p = df_p[
+        df_p["latitude"].between(-90, 90) &
+        df_p["longitude"].between(-180, 180)
+    ].dropna(subset=["latitude", "longitude"])
+
+    if len(df_p) < 2:
         continue
+
+    # === BATAS TITIK ===
+    if len(df_p) > MAX_TITIK:
+        st.warning(
+            f"{pickuper}: titik terlalu banyak ({len(df_p)}), "
+            f"dipotong {MAX_TITIK}"
+        )
+        df_p = df_p.iloc[:MAX_TITIK]
 
     coords = list(zip(df_p["latitude"], df_p["longitude"]))
 
     trip = osrm_trip(coords)
     if not trip:
-        st.warning(f"Gagal hitung rute OSRM untuk {pickuper}")
+        st.error(f"{pickuper}: gagal hitung rute OSRM")
         continue
 
     # === URUTAN OPTIMAL ===
@@ -155,7 +175,7 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
             """)
         ).add_to(m)
 
-    # === RUTE JALAN ===
+    # === RUTE JALAN (SEKALI) ===
     geometry = trip["trips"][0]["geometry"]["coordinates"]
     folium.PolyLine(
         locations=[[lat, lon] for lon, lat in geometry],
@@ -167,5 +187,5 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
 # =====================
 # OUTPUT
 # =====================
-st.subheader("🗺️ Rute Pickup Optimal (Ngikut Jalan)")
+st.subheader("🗺️ Rute Pickup Optimal (Ngikut Jalan & Efisien)")
 m.to_streamlit()
