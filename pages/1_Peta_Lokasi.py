@@ -7,13 +7,12 @@ import os
 
 from supabase import create_client
 from dotenv import load_dotenv
-from math import radians, cos, sin, asin, sqrt
 
 # =====================
 # PAGE SETUP
 # =====================
 st.set_page_config(layout="wide")
-st.title("📍 Peta Lokasi Pickup")
+st.title("📍 Peta Rute Pickup Optimal")
 
 load_dotenv()
 supabase = create_client(
@@ -22,10 +21,14 @@ supabase = create_client(
 )
 
 # =====================
-# AMBIL DATA
+# LOAD DATA (CACHE)
 # =====================
-response = supabase.table("pickup_locations").select("*").execute()
-df = pd.DataFrame(response.data)
+@st.cache_data(ttl=300)
+def load_data():
+    res = supabase.table("pickup_locations").select("*").execute()
+    return pd.DataFrame(res.data)
+
+df = load_data()
 
 if df.empty:
     st.warning("Data pickup masih kosong")
@@ -37,51 +40,6 @@ if missing:
     st.error(f"Kolom wajib tidak ditemukan: {', '.join(missing)}")
     st.stop()
 
-df_asli = df.copy()
-
-# =====================
-# FUNGSI UTIL
-# =====================
-def jarak(lat1, lon1, lat2, lon2):
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    dlat, dlon = lat2 - lat1, lon2 - lon1
-    a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
-    return 6371 * (2 * asin(sqrt(a)))
-
-def rute_jalan(lat1, lon1, lat2, lon2):
-    url = (
-        f"http://router.project-osrm.org/route/v1/driving/"
-        f"{lon1},{lat1};{lon2},{lat2}"
-        "?overview=full&geometries=geojson"
-    )
-    res = requests.get(url, timeout=10)
-    if res.status_code != 200:
-        return None
-    return res.json()["routes"][0]["geometry"]["coordinates"]
-
-def urutkan_rute(df):
-    if len(df) <= 1:
-        return df
-
-    df = df.copy()
-    hasil = [df.iloc[0]]
-    sisa = df.iloc[1:]
-
-    while not sisa.empty:
-        terakhir = hasil[-1]
-        sisa["jarak"] = sisa.apply(
-            lambda x: jarak(
-                terakhir["latitude"], terakhir["longitude"],
-                x["latitude"], x["longitude"]
-            ),
-            axis=1
-        )
-        terdekat = sisa.loc[sisa["jarak"].idxmin()]
-        hasil.append(terdekat)
-        sisa = sisa.drop(terdekat.name)
-
-    return pd.DataFrame(hasil)
-
 # =====================
 # WARNA PICKUPER
 # =====================
@@ -90,28 +48,29 @@ warna = [
     "darkred", "cadetblue", "darkgreen"
 ]
 
-pickuper_semua = sorted(df_asli["nama_pickuper"].dropna().unique())
-
-color_map = {
-    p: warna[i % len(warna)]
-    for i, p in enumerate(pickuper_semua)
-}
+pickuper_list = sorted(df["nama_pickuper"].dropna().unique())
+color_map = {p: warna[i % len(warna)] for i, p in enumerate(pickuper_list)}
 
 # =====================
-# FILTER SIDEBAR
+# SIDEBAR
 # =====================
 st.sidebar.header("Filter")
 
-# === LEGEND WARNA PICKUPER ===
-st.sidebar.markdown("### 🎨 Warna Pickuper")
+pilih_pickuper = st.sidebar.selectbox(
+    "Pilih Pickuper",
+    ["Semua"] + pickuper_list
+)
 
-for p in pickuper_semua:
+if pilih_pickuper != "Semua":
+    df = df[df["nama_pickuper"] == pilih_pickuper]
+
+st.sidebar.markdown("### 🎨 Warna Pickuper")
+for p in pickuper_list:
     st.sidebar.markdown(
         f"""
-        <div style="display:flex; align-items:center; margin-bottom:4px;">
+        <div style="display:flex;align-items:center;margin-bottom:4px;">
             <span style="
-                width:12px;
-                height:12px;
+                width:12px;height:12px;
                 background:{color_map[p]};
                 border-radius:50%;
                 display:inline-block;
@@ -123,30 +82,59 @@ for p in pickuper_semua:
         unsafe_allow_html=True
     )
 
-# === DROPDOWN FILTER ===
-pilih_pickuper = st.sidebar.selectbox(
-    "Pilih Pickuper",
-    ["Semua"] + pickuper_semua
-)
+# =====================
+# OSRM TRIP (CACHE)
+# =====================
+@st.cache_data(ttl=3600)
+def osrm_trip(coords):
+    """
+    coords: list of (lat, lon)
+    """
+    coord_str = ";".join([f"{lon},{lat}" for lat, lon in coords])
 
-if pilih_pickuper != "Semua":
-    df = df[df["nama_pickuper"] == pilih_pickuper]
+    url = (
+        f"http://router.project-osrm.org/trip/v1/driving/"
+        f"{coord_str}"
+        "?overview=full&geometries=geojson&roundtrip=false"
+    )
+
+    res = requests.get(url, timeout=20)
+    if res.status_code != 200:
+        return None
+
+    return res.json()
 
 # =====================
-# PETA
+# MAP
 # =====================
 m = leafmap.Map(center=[-2.5, 118], zoom=5)
 
-for pickuper in sorted(df["nama_pickuper"].dropna().unique()):
-    df_p = urutkan_rute(df[df["nama_pickuper"] == pickuper])
-    coords = []
+for pickuper in sorted(df["nama_pickuper"].unique()):
+    df_p = df[df["nama_pickuper"] == pickuper].reset_index(drop=True)
 
-    for i, row in enumerate(df_p.itertuples(), start=1):
-        lat, lon = row.latitude, row.longitude
-        coords.append([lat, lon])
-
+    if len(df_p) == 1:
+        row = df_p.iloc[0]
         folium.Marker(
-            [lat, lon],
+            [row.latitude, row.longitude],
+            tooltip=row.nama_mitra
+        ).add_to(m)
+        continue
+
+    coords = list(zip(df_p["latitude"], df_p["longitude"]))
+
+    trip = osrm_trip(coords)
+    if not trip:
+        st.warning(f"Gagal hitung rute OSRM untuk {pickuper}")
+        continue
+
+    # === URUTAN OPTIMAL ===
+    order = [wp["waypoint_index"] for wp in trip["waypoints"]]
+    df_p = df_p.iloc[order].reset_index(drop=True)
+
+    # === MARKER ===
+    for i, row in enumerate(df_p.itertuples(), 1):
+        folium.Marker(
+            [row.latitude, row.longitude],
             tooltip=f"{i}. {row.nama_mitra}",
             popup=f"""
                 <b>{pickuper}</b><br>
@@ -158,29 +146,26 @@ for pickuper in sorted(df["nama_pickuper"].dropna().unique()):
                     background:{color_map[pickuper]};
                     color:white;
                     border-radius:50%;
-                    width:28px;
-                    height:28px;
-                    line-height:28px;
+                    width:26px;
+                    height:26px;
+                    line-height:26px;
                     text-align:center;
                     font-weight:bold;
                 ">{i}</div>
             """)
         ).add_to(m)
 
-    for i in range(len(coords) - 1):
-        jalan = rute_jalan(*coords[i], *coords[i + 1])
-        if not jalan:
-            continue
-
-        folium.PolyLine(
-            locations=[[lat, lon] for lon, lat in jalan],
-            color=color_map[pickuper],
-            weight=4,
-            opacity=0.8
-        ).add_to(m)
+    # === RUTE JALAN ===
+    geometry = trip["trips"][0]["geometry"]["coordinates"]
+    folium.PolyLine(
+        locations=[[lat, lon] for lon, lat in geometry],
+        color=color_map[pickuper],
+        weight=4,
+        opacity=0.85
+    ).add_to(m)
 
 # =====================
-# TAMPILKAN
+# OUTPUT
 # =====================
-st.subheader("🗺️ Peta Rute Pickup per Pickuper")
+st.subheader("🗺️ Rute Pickup Optimal (Ngikut Jalan)")
 m.to_streamlit()
