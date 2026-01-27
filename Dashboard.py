@@ -12,11 +12,11 @@ from supabase import create_client
 # PAGE CONFIG
 # =====================
 st.set_page_config(
-    page_title="Peta Rute Pickup",
+    page_title="SIG Sebaran Titik Pickup Mitra Korporat",
     layout="wide"
 )
 
-st.title("🗺️ Peta Rute Pickup Optimal")
+st.title("Peta Rute Pickup")
 
 # =====================
 # SUPABASE
@@ -123,7 +123,6 @@ def popup_card(row):
 # =========================================================
 # ===================== PETA (ATAS) =======================
 # =========================================================
-st.subheader("🗺️ Rute Pickup Optimal")
 
 m = leafmap.Map()
 all_bounds = []
@@ -194,7 +193,7 @@ col_tabel, col_grafik = st.columns([1.4, 1])
 # TABEL + PAGINATION
 # =====================
 with col_tabel:
-    st.subheader("📋 Rekap Lokasi Pickup")
+    st.subheader("Rekap Lokasi Pickup")
 
     PAGE_SIZE = 8
     total = len(df_filtered)
@@ -224,7 +223,7 @@ with col_tabel:
 # GRAFIK
 # =====================
 with col_grafik:
-    st.subheader("📊 Jumlah Lokasi per Pickuper")
+    st.subheader("Grafik Lokasi Pickup")
 
     rekap = (
         df_filtered
@@ -241,3 +240,4 @@ with col_grafik:
     ).properties(height=320)
 
     st.altair_chart(chart, use_container_width=True)
+
