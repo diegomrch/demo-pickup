@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📦 Sistem Informasi Geografis Pickup Mitra Korporat")
+st.title("Sistem Informasi Geografis Pickup Mitra Korporat")
 
 # Supabase credentials (lokal & cloud)
 url = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
@@ -35,7 +35,7 @@ if pilih_pickuper != "Semua":
 
 
 # ===== GRAFIK =====
-st.subheader("📊 Grafik Jumlah Lokasi per Pickuper")
+st.subheader("Grafik Jumlah Lokasi per Pickuper")
 
 rekap = (
     df.groupby("nama_pickuper")
@@ -59,7 +59,8 @@ chart = alt.Chart(rekap).mark_bar().encode(
 st.altair_chart(chart, use_container_width=True)
 
 # ===== REKAP DATA =====
-st.subheader("📋 Rekap Data Lokasi Pickup")
+st.subheader("Rekap Data Lokasi Pickup")
 st.dataframe(df, use_container_width=True)
+
 
 
