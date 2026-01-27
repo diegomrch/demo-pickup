@@ -24,7 +24,7 @@ supabase = create_client(
 )
 
 # =====================
-# LOAD DATA (CACHE)
+# LOAD DATA
 # =====================
 @st.cache_data(ttl=300)
 def load_data():
@@ -44,21 +44,32 @@ if missing:
     st.stop()
 
 # =====================
+# VALIDASI KOORDINAT GLOBAL
+# =====================
+df = df[
+    df["latitude"].between(-90, 90) &
+    df["longitude"].between(-180, 180)
+].dropna(subset=["latitude", "longitude"])
+
+if df.empty:
+    st.error("Semua data koordinat tidak valid")
+    st.stop()
+
+# =====================
 # WARNA PICKUPER
 # =====================
-warna = [
+WARNA = [
     "red", "blue", "green", "purple", "orange",
     "darkred", "cadetblue", "darkgreen"
 ]
 
-pickuper_list = sorted(df["nama_pickuper"].dropna().unique())
-color_map = {p: warna[i % len(warna)] for i, p in enumerate(pickuper_list)}
+pickuper_list = sorted(df["nama_pickuper"].unique())
+color_map = {p: WARNA[i % len(WARNA)] for i, p in enumerate(pickuper_list)}
 
 # =====================
 # SIDEBAR
 # =====================
 st.sidebar.header("Filter")
-
 pilih_pickuper = st.sidebar.selectbox(
     "Pilih Pickuper",
     ["Semua"] + pickuper_list
@@ -86,75 +97,65 @@ for p in pickuper_list:
     )
 
 # =====================
-# OSRM TRIP (AMAN)
+# OSRM TRIP
 # =====================
 @st.cache_data(ttl=3600)
 def osrm_trip(coords):
-    """
-    coords: list of (lat, lon)
-    """
     if len(coords) < 2:
         return None
 
     coord_str = ";".join([f"{lon},{lat}" for lat, lon in coords])
-
     url = (
         f"http://router.project-osrm.org/trip/v1/driving/"
         f"{coord_str}"
-        "?overview=full"
-        "&geometries=geojson"
-        "&roundtrip=false"
-        "&source=first"
+        "?overview=full&geometries=geojson&roundtrip=false&source=first"
     )
 
-    res = requests.get(url, timeout=20)
-    if res.status_code != 200:
+    try:
+        res = requests.get(url, timeout=20)
+        if res.status_code != 200:
+            return None
+        return res.json()
+    except requests.RequestException:
         return None
 
-    return res.json()
-
 # =====================
-# MAP
+# MAP INIT (TANPA CENTER)
 # =====================
-m = leafmap.Map(center=[-2.5, 118], zoom=5)
+m = leafmap.Map()
 
-MAX_TITIK = 50  # batas aman OSRM public
+MAX_TITIK = 50
+all_bounds = []
 
 for pickuper in sorted(df["nama_pickuper"].unique()):
     df_p = df[df["nama_pickuper"] == pickuper].reset_index(drop=True)
 
-    # === VALIDASI KOORDINAT ===
-    df_p = df_p[
-        df_p["latitude"].between(-90, 90) &
-        df_p["longitude"].between(-180, 180)
-    ].dropna(subset=["latitude", "longitude"])
-
     if len(df_p) < 2:
         continue
 
-    # === BATAS TITIK ===
     if len(df_p) > MAX_TITIK:
         st.warning(
-            f"{pickuper}: titik terlalu banyak ({len(df_p)}), "
-            f"dipotong {MAX_TITIK}"
+            f"{pickuper}: titik terlalu banyak ({len(df_p)}), dipotong {MAX_TITIK}"
         )
         df_p = df_p.iloc[:MAX_TITIK]
 
     coords = list(zip(df_p["latitude"], df_p["longitude"]))
-
     trip = osrm_trip(coords)
+
     if not trip:
         st.error(f"{pickuper}: gagal hitung rute OSRM")
         continue
 
-    # === URUTAN OPTIMAL ===
     order = [wp["waypoint_index"] for wp in trip["waypoints"]]
     df_p = df_p.iloc[order].reset_index(drop=True)
 
     # === MARKER ===
     for i, row in enumerate(df_p.itertuples(), 1):
+        lat, lon = row.latitude, row.longitude
+        all_bounds.append([lat, lon])
+
         folium.Marker(
-            [row.latitude, row.longitude],
+            [lat, lon],
             tooltip=f"{i}. {row.nama_mitra}",
             popup=f"""
                 <b>{pickuper}</b><br>
@@ -175,7 +176,7 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
             """)
         ).add_to(m)
 
-    # === RUTE JALAN (SEKALI) ===
+    # === RUTE ===
     geometry = trip["trips"][0]["geometry"]["coordinates"]
     folium.PolyLine(
         locations=[[lat, lon] for lon, lat in geometry],
@@ -185,7 +186,19 @@ for pickuper in sorted(df["nama_pickuper"].unique()):
     ).add_to(m)
 
 # =====================
+# AUTO ZOOM KE DATA
+# =====================
+if all_bounds:
+    lats = [b[0] for b in all_bounds]
+    lons = [b[1] for b in all_bounds]
+
+    m.fit_bounds([
+        [min(lats), min(lons)],
+        [max(lats), max(lons)]
+    ])
+
+# =====================
 # OUTPUT
 # =====================
-st.subheader("🗺️ Rute Pickup Optimal (Ngikut Jalan & Efisien)")
+st.subheader("🗺️ Rute Pickup Optimal (Auto Zoom ke Lokasi)")
 m.to_streamlit()
