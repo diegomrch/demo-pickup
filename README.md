@@ -3,8 +3,8 @@ Sistem Pemetaan Layanan Pick Up Pelanggan Korporat - SIG
 
 Dibuat oleh
 --------------------
-Ario Yudhanto 714252018
-Diego Raudya Trimeidianto 714252004
+1. Ario Yudhanto 714252018
+2. Diego Raudya Trimeidianto 714252004
 
 Latar Belakang
 --------------------
