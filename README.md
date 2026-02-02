@@ -1,4 +1,4 @@
-# pickup-sbs.github.io
+# demo-pickup.github.io
 Sistem Pemetaan Layanan Pick Up Pelanggan Korporat - SIG
 
 Dibuat oleh
