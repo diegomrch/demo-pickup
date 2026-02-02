@@ -8,7 +8,7 @@ st.set_page_config(
 st.title("ℹ️ Tentang Sistem")
 
 st.markdown("""
-### 📦 Sistem Informasi Geografis (SIG) Pickup Mitra Korporat
+### Sistem Informasi Geografis (SIG) Pickup Mitra Korporat
 
 Aplikasi ini merupakan **Sistem Informasi Geografis berbasis web** yang digunakan
 untuk menampilkan, memantau, dan menganalisis **lokasi pickup mitra korporat**
@@ -16,7 +16,7 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 
 ---
 
-### 🎯 Tujuan Sistem
+### Tujuan Sistem
 - Menampilkan lokasi pickup secara **visual pada peta**
 - Memudahkan monitoring pickup berdasarkan **pickuper**
 - Menyajikan **rekap dan analisis data** lokasi pickup
@@ -24,12 +24,12 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 
 ---
 
-### 🧩 Fitur Utama
-- 📋 Rekap data lokasi pickup
-- 📊 Grafik jumlah lokasi per pickuper
-- 🗺️ Peta interaktif lokasi pickup
-- 🎨 Marker peta berbeda warna untuk setiap pickuper
-- 🔍 Filter data berdasarkan pickuper
+### Fitur Utama
+- Rekap data lokasi pickup
+- Grafik jumlah lokasi per pickuper
+- Peta interaktif lokasi pickup
+- Marker peta berbeda warna untuk setiap pickuper
+- Filter data berdasarkan pickuper
 
 ---
 
@@ -47,6 +47,7 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 - D4 Teknik Informatika RPL  
 - Universitas Logistik dan Bisnis Internasional (ULBI)
 """)
+
 
 
 
