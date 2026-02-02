@@ -33,7 +33,7 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 
 ---
 
-### 🛠 Teknologi yang Digunakan
+### Teknologi yang Digunakan
 - **Streamlit** – antarmuka web
 - **Supabase** – database PostgreSQL
 - **Leafmap & Folium** – visualisasi peta
@@ -41,12 +41,13 @@ berdasarkan data yang tersimpan pada **Supabase Database**.
 
 ---
 
-### 👨‍🎓 Pengembang
+### Pengembang
 - ARIO YUDHANTO - 714252018
 - DIEGO RAUDYA TRIMEIDIANTO - 714252004
 - D4 Teknik Informatika RPL  
 - Universitas Logistik dan Bisnis Internasional (ULBI)
 """)
+
 
 
 
