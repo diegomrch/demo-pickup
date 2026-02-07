@@ -14,5 +14,5 @@ Milestone
 5. Deploy aplikasi secara live
 
 Link
-Github : https://github.com/diegomrch/demo-pickup
-Aplikasi : https://demo-pickup.streamlit.app/
+1. Github : https://github.com/diegomrch/demo-pickup
+2. Aplikasi : https://demo-pickup.streamlit.app/
