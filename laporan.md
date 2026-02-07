@@ -1,4 +1,5 @@
 SIG - Sistem Pemetaan Layanan Pick Up Mitra Korporat
+
 Membuat sistem informasi geografis yang dapat memudahkan Pickuper terkait untuk menentukan rute pickup jika ada penambahan maupun perubahan sementara yang diharapkan dapat lebih efisien.
 
 Kelompok
